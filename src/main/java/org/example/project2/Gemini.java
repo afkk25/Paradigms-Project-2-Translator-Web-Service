@@ -6,12 +6,8 @@ import io.github.cdimascio.dotenv.Dotenv;
 
 public class Gemini {
     public String GenerateTranslation(String toTranslate) {
-//        Dotenv dotenv = Dotenv.configure()
-//                .directory("C:/Users/afafb/OneDrive/Desktop/CSC 3374/Project2/.env")
-//                .load();
-        Dotenv dotenv = Dotenv.load();
-        String apiKey = dotenv.get("GOOGLE_API_KEY");
 
+        String apiKey = System.getenv("GOOGLE_API_KEY"); // reads from OS env var
         Client client = Client.builder()
                 .apiKey(apiKey)
                 .build();
