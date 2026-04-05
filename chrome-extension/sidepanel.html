@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Darija Translator - Login</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="page-shell">
+    <main class="card">
+        <p class="eyebrow">Darija Translator</p>
+        <h1 class="title">Authentication</h1>
+        <p class="subtitle">Sign in to your translation API account.</p>
+
+        <label class="field-label" for="username">Username</label>
+        <input class="field" id="username" type="text" autocomplete="username" placeholder="Enter API username" />
+
+        <label class="field-label" for="password">Password</label>
+        <input class="field" id="password" type="password" autocomplete="current-password" placeholder="Enter API password" />
+
+        <label class="remember-row" for="rememberCreds">
+            <input id="rememberCreds" type="checkbox" />
+            <span>Remember credentials</span>
+        </label>
+
+        <button class="primary-btn" id="translateBtn" type="button">Translate</button>
+
+        <p class="status" id="authStatus" aria-live="polite"></p>
+
+        <div class="modal" id="errorModal">
+            <div class="modal-content">
+                <h2 class="modal-title">Authentication Error</h2>
+                <p class="modal-message" id="errorMessage"></p>
+                <button class="modal-close-btn" id="errorCloseBtn" type="button">Try Again</button>
+            </div>
+        </div>
+    </main>
+
+    <script src="sidepanel.js"></script>
+</body>
+</html>
