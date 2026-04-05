@@ -158,9 +158,10 @@ If testing on a physical phone/emulator, replace `localhost` with your machine L
 1. Start/deploy backend WAR with `GOOGLE_API_KEY` set.
 2. Ensure valid BASIC auth user has role `user`.
 3. Test with:
+   - Postman, cURL, Thunder Client, or any other HTTP tool.
    - Chrome extension (select text on any web page), or
    - Mobile app UI.
-4. Confirm translated text is returned.
+5. Confirm translated text is returned.
 
 ## Troubleshooting
 
@@ -172,8 +173,3 @@ If testing on a physical phone/emulator, replace `localhost` with your machine L
   - For mobile devices, use machine LAN IP instead of `localhost`.
 - **Gemini call fails**
   - Verify `GOOGLE_API_KEY` is set in the backend runtime environment.
-
-## Notes
-
-- The backend currently targets Java 22 and packages as a WAR.
-- `Translator-web-service\target` and `mobile-app\node_modules` are build/generated directories and should not be manually edited.
