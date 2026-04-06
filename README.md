@@ -159,9 +159,10 @@ On Android emulator, `localhost` is auto-mapped to `10.0.2.2` by the app.
 1. Start/deploy backend WAR with `GOOGLE_API_KEY` set.
 2. Ensure valid BASIC auth user has role `user`.
 3. Test with:
+   - Postman, cURL, Thunder Client, or any other HTTP tool.
    - Chrome extension (select text on any web page), or
    - Mobile app UI.
-4. Confirm translated text is returned.
+5. Confirm translated text is returned.
 
 ## Troubleshooting
 
@@ -175,8 +176,3 @@ On Android emulator, `localhost` is auto-mapped to `10.0.2.2` by the app.
   - For Expo web, CORS is now handled by backend (`CorsFilter` + `OPTIONS` support). Rebuild/redeploy WAR after pulling latest changes.
 - **Gemini call fails**
   - Verify `GOOGLE_API_KEY` is set in the backend runtime environment.
-
-## Notes
-
-- The backend currently targets Java 22 and packages as a WAR.
-- `Translator-web-service\target` and `mobile-app\node_modules` are build/generated directories and should not be manually edited.
