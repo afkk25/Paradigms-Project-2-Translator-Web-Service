@@ -136,6 +136,7 @@ Default endpoint in `App.js`:
 
 In the app UI, you can edit endpoint, username, and password.
 If testing on a physical phone/emulator, replace `localhost` with your machine LAN IP.
+On Android emulator, `localhost` is auto-mapped to `10.0.2.2` by the app.
 
 ## API Contract
 
@@ -169,7 +170,9 @@ If testing on a physical phone/emulator, replace `localhost` with your machine L
   - Verify server user is in role `user`.
 - **Network error / cannot connect**
   - Confirm backend is running on `localhost:8080`.
-  - For mobile devices, use machine LAN IP instead of `localhost`.
+  - For physical devices, use machine LAN IP instead of `localhost`.
+  - For Android emulator, use `10.0.2.2` (the app now auto-adjusts when `localhost` is entered).
+  - For Expo web, CORS is now handled by backend (`CorsFilter` + `OPTIONS` support). Rebuild/redeploy WAR after pulling latest changes.
 - **Gemini call fails**
   - Verify `GOOGLE_API_KEY` is set in the backend runtime environment.
 

@@ -3,10 +3,16 @@ package org.example.project2;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 // http://localhost:8080/Project2-1.0-SNAPSHOT/api/translator
 @Path("/translator")
 public class TranslatorResource {
+    @OPTIONS
+    public Response preflight() {
+        return Response.noContent().build();
+    }
+
     @POST
     @Consumes(MediaType.TEXT_PLAIN)
     @Produces(MediaType.TEXT_PLAIN)

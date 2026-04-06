@@ -15,6 +15,29 @@ import { encode as b64encode } from "base-64";
 
 const DEFAULT_ENDPOINT = "http://localhost:8080/Project2-1.0-SNAPSHOT/api/translator";
 
+function resolveEndpoint(rawEndpoint) {
+  const value = rawEndpoint.trim();
+  let parsed;
+
+  try {
+    parsed = new URL(value);
+  } catch {
+    return { endpoint: value, isAdjusted: false };
+  }
+
+  const isLoopback = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+  if (!isLoopback) {
+    return { endpoint: parsed.toString(), isAdjusted: false };
+  }
+
+  if (Platform.OS === "android") {
+    parsed.hostname = "10.0.2.2";
+    return { endpoint: parsed.toString(), isAdjusted: true };
+  }
+
+  return { endpoint: parsed.toString(), isAdjusted: false };
+}
+
 async function translateText({ endpoint, username, password, text }) {
   const response = await fetch(endpoint, {
     method: "POST",
@@ -45,6 +68,7 @@ export default function App() {
   const [translatedText, setTranslatedText] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [lastUsedEndpoint, setLastUsedEndpoint] = useState("");
 
   const canTranslate = useMemo(() => {
     return (
@@ -60,10 +84,15 @@ export default function App() {
     setErrorMessage("");
     setTranslatedText("");
     setIsLoading(true);
+    let resolvedEndpointForError = endpoint.trim();
 
     try {
+      const { endpoint: resolvedEndpoint } = resolveEndpoint(endpoint);
+      resolvedEndpointForError = resolvedEndpoint;
+      setLastUsedEndpoint(resolvedEndpoint);
+
       const translated = await translateText({
-        endpoint: endpoint.trim(),
+        endpoint: resolvedEndpoint,
         username: username.trim(),
         password,
         text: sourceText.trim(),
@@ -72,16 +101,35 @@ export default function App() {
     } catch (error) {
       if (error.status === 401) {
         setErrorMessage("Credentials are wrong. Please check username and password.");
+      } else if (error.name === "TypeError") {
+        setErrorMessage(
+          `Cannot reach API endpoint (${resolvedEndpointForError}). ` +
+            (Platform.OS === "web"
+              ? "If your backend works in Postman but fails in browser, this is usually CORS. Add Access-Control-Allow-Origin for your Expo web origin and retry."
+              : "Check that the host/port is reachable from this app runtime.")
+        );
       } else {
         setErrorMessage(
           `Translation failed${error.status ? ` (${error.status})` : ""}. ` +
-            "If using a phone/emulator, replace localhost with your machine LAN IP."
+            `${error.body ? `Server response: ${error.body}` : "Please verify endpoint and server logs."}`
         );
       }
     } finally {
       setIsLoading(false);
     }
   };
+
+  const onReset = () => {
+    setSourceText("");
+    setTranslatedText("");
+    setErrorMessage("");
+  };
+
+  const statusText = useMemo(() => {
+    if (isLoading) return "Translating...";
+    if (translatedText) return "Translation complete.";
+    return "Ready";
+  }, [isLoading, translatedText]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -90,10 +138,14 @@ export default function App() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>Darija Translator</Text>
-          <Text style={styles.subtitle}>Mobile client for your existing translation web service.</Text>
+          <View style={styles.glowPrimary} />
+          <View style={styles.glowAccent} />
 
           <View style={styles.card}>
+            <Text style={styles.eyebrow}>Darija Translator</Text>
+            <Text style={styles.title}>Mobile Translation</Text>
+            <Text style={styles.subtitle}>Sign in and translate text with your existing API account.</Text>
+
             <Text style={styles.label}>API Endpoint</Text>
             <TextInput
               style={styles.input}
@@ -102,6 +154,7 @@ export default function App() {
               autoCapitalize="none"
               autoCorrect={false}
               placeholder="http://localhost:8080/.../api/translator"
+              placeholderTextColor="#8aa9a2"
             />
 
             <Text style={styles.label}>Username</Text>
@@ -111,7 +164,8 @@ export default function App() {
               onChangeText={setUsername}
               autoCapitalize="none"
               autoCorrect={false}
-              placeholder="username"
+              placeholder="Enter API username"
+              placeholderTextColor="#8aa9a2"
             />
 
             <Text style={styles.label}>Password</Text>
@@ -120,7 +174,8 @@ export default function App() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry
-              placeholder="password"
+              placeholder="Enter API password"
+              placeholderTextColor="#8aa9a2"
             />
 
             <Text style={styles.label}>Text to Translate</Text>
@@ -130,34 +185,54 @@ export default function App() {
               onChangeText={setSourceText}
               multiline
               textAlignVertical="top"
-              placeholder="Enter text to translate to Darija..."
+              placeholder="Enter English text..."
+              placeholderTextColor="#8aa9a2"
             />
 
             <Pressable
-              style={[styles.button, !canTranslate && styles.buttonDisabled]}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                (!canTranslate || pressed) && styles.primaryButtonMuted,
+                !canTranslate && styles.buttonDisabled,
+              ]}
               onPress={onTranslate}
               disabled={!canTranslate}
             >
               {isLoading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>Translate</Text>
+                <Text style={styles.primaryButtonText}>Translate</Text>
               )}
             </Pressable>
+
+            <Pressable style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryButtonMuted]} onPress={onReset}>
+              <Text style={styles.secondaryButtonText}>Clear Text</Text>
+            </Pressable>
+
+            <Text style={styles.status}>{statusText}</Text>
+            {lastUsedEndpoint ? <Text style={styles.endpointHint}>Request URL: {lastUsedEndpoint}</Text> : null}
+
+            {errorMessage ? (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorTitle}>Authentication Error</Text>
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.resultGroup}>
+              <Text style={styles.resultLabel}>Original</Text>
+              <View style={styles.resultBox}>
+                <Text style={styles.resultText}>{sourceText.trim() || "No text yet."}</Text>
+              </View>
+            </View>
+
+            <View style={styles.resultGroup}>
+              <Text style={styles.resultLabel}>Darija</Text>
+              <View style={styles.resultBox}>
+                <Text style={styles.resultText}>{translatedText || "Your translation will appear here."}</Text>
+              </View>
+            </View>
           </View>
-
-          {errorMessage ? (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{errorMessage}</Text>
-            </View>
-          ) : null}
-
-          {translatedText ? (
-            <View style={styles.resultCard}>
-              <Text style={styles.resultLabel}>Translation</Text>
-              <Text style={styles.resultText}>{translatedText}</Text>
-            </View>
-          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -167,97 +242,181 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: "#e8f5f2",
   },
   keyboardContainer: {
     flex: 1,
   },
   container: {
-    padding: 16,
-    gap: 12,
+    padding: 18,
+    alignItems: "center",
+    position: "relative",
+  },
+  card: {
+    width: "100%",
+    maxWidth: 520,
+    borderRadius: 18,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#c8e6e0",
+    backgroundColor: "#f8fffe",
+    shadowColor: "#2d8b9d",
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 5,
+  },
+  glowPrimary: {
+    position: "absolute",
+    top: 10,
+    right: 16,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(44, 189, 157, 0.18)",
+  },
+  glowAccent: {
+    position: "absolute",
+    bottom: 40,
+    left: 6,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(232, 100, 155, 0.14)",
+  },
+  eyebrow: {
+    marginBottom: 6,
+    fontSize: 12,
+    letterSpacing: 1.6,
+    textTransform: "uppercase",
+    color: "#1d9b7f",
+    fontWeight: "700",
   },
   title: {
-    fontSize: 28,
+    fontSize: 30,
+    lineHeight: 34,
     fontWeight: "700",
-    color: "#111827",
+    color: "#1d1f24",
+    marginBottom: 6,
   },
   subtitle: {
     fontSize: 14,
-    color: "#4b5563",
-    marginBottom: 4,
-  },
-  card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    padding: 14,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    color: "#5a8a81",
+    marginBottom: 8,
   },
   label: {
-    marginTop: 8,
+    marginTop: 10,
     marginBottom: 6,
     fontSize: 13,
-    fontWeight: "600",
-    color: "#374151",
+    fontWeight: "700",
+    color: "#1d1f24",
   },
   input: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: "#d4e9e3",
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     backgroundColor: "#fff",
     fontSize: 14,
-    color: "#111827",
+    color: "#1d1f24",
   },
   multilineInput: {
     minHeight: 120,
   },
-  button: {
+  primaryButton: {
     marginTop: 14,
-    backgroundColor: "#2563eb",
-    borderRadius: 10,
+    backgroundColor: "#2cbd9d",
+    borderRadius: 12,
     paddingVertical: 12,
     alignItems: "center",
+    shadowColor: "#2cbd9d",
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  primaryButtonMuted: {
+    opacity: 0.9,
   },
   buttonDisabled: {
-    backgroundColor: "#93c5fd",
+    opacity: 0.55,
   },
-  buttonText: {
+  primaryButtonText: {
     color: "#fff",
     fontWeight: "700",
     fontSize: 15,
   },
+  secondaryButton: {
+    marginTop: 10,
+    backgroundColor: "#e85a9f",
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+    shadowColor: "#e85a9f",
+    shadowOpacity: 0.25,
+    shadowRadius: 9,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  secondaryButtonMuted: {
+    opacity: 0.9,
+  },
+  secondaryButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  status: {
+    minHeight: 19,
+    marginTop: 12,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#1d9b7f",
+  },
+  endpointHint: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#5a8a81",
+  },
   errorBox: {
-    borderRadius: 10,
-    backgroundColor: "#fee2e2",
-    borderWidth: 1,
-    borderColor: "#fca5a5",
+    marginTop: 8,
+    borderRadius: 12,
+    backgroundColor: "#fff4f4",
+    borderWidth: 2,
+    borderColor: "#f56a6a",
     padding: 12,
   },
+  errorTitle: {
+    color: "#e74c3c",
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
   errorText: {
-    color: "#991b1b",
+    color: "#5a8a81",
     fontSize: 13,
   },
-  resultCard: {
-    borderRadius: 12,
-    backgroundColor: "#ecfeff",
-    borderWidth: 1,
-    borderColor: "#67e8f9",
-    padding: 14,
-    marginBottom: 16,
+  resultGroup: {
+    marginTop: 12,
   },
   resultLabel: {
+    marginBottom: 6,
     fontWeight: "700",
-    color: "#0e7490",
-    marginBottom: 8,
+    color: "#1d1f24",
+    fontSize: 14,
+  },
+  resultBox: {
+    borderWidth: 1,
+    borderColor: "#d4e9e3",
+    borderRadius: 11,
+    backgroundColor: "rgba(240, 250, 248, 0.6)",
+    padding: 12,
+    minHeight: 46,
   },
   resultText: {
-    color: "#164e63",
+    color: "#252832",
     fontSize: 15,
-    lineHeight: 22,
+    lineHeight: 21,
   },
 });
